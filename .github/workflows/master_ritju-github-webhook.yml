@@ -41,4 +41,4 @@ jobs:
           app-name: 'ritju-github-webhook'
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A15D7ED27C444D60ACC3373DE04C03E6 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3E86DA1FCFF943DEB763CC7CED84375F }}
