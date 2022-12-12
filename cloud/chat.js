@@ -8,10 +8,12 @@ const defaultUrl = "https://qyapi.weixin.qq.com/cgi-bin/webhook/";
 
 
 class ChatRobot {
-    constructor(robotId, options) {
+    
+    constructor(context, robotId, options) {
         this.robotId = robotId;
         this.url = defaultUrl;
-        console.log('defaultUrl: ', defaultUrl);
+        this.context = context;
+        context.log('defaultUrl: '+ defaultUrl);
     }
 
     /**
@@ -29,14 +31,14 @@ class ChatRobot {
                 function (error, response, body) {
                     if (!error && response.statusCode == 200) {
                         if (body.errcode === 0 && body.errmsg === "ok") {
-                            console.log("机器人成功发送通知", body);
+                            self.context.log("机器人成功发送通知");
                             resolve (response);
                         } else {
-                            console.error("机器人发送通知失败", body);
+                            self.context.log("机器人发送通知失败");
                             reject (body);
                         }
                     } else {
-                        console.error("调用机器人webhook失败", error);
+                        self.context.log("调用机器人webhook失败");
                         reject (error);
                     }
                 }

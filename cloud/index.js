@@ -14,6 +14,7 @@ const actionWords = {
     "synchronize": "同步更新"
 };
 
+const { stat } = require('fs');
 const querystring = require('querystring');
 const ChatRobot = require('./chat');
 /**
@@ -21,11 +22,12 @@ const ChatRobot = require('./chat');
  * @param ctx koa context
  * @param robotid 机器人id
  */
-async function handlePing(body, robotid) {
+async function handlePing(context, body, robotid) {
     const robot = new ChatRobot(
+        context,
         robotid
-        );
-        
+    );
+
     const { repository } = body;
     const msg = "成功收到了来自Github的Ping请求，项目名称：" + repository.name;
     await robot.sendTextMsg(msg);
@@ -37,14 +39,15 @@ async function handlePing(body, robotid) {
  * @param ctx koa context
  * @param robotid 机器人id
  */
-async function handlePush(body, robotid) {
+async function handlePush(context, body, robotid) {
     const robot = new ChatRobot(
+        context,
         robotid
     );
     let msg;
-    const { pusher, repository, commits, ref} = body;
+    const { pusher, repository, head_commit, ref } = body;
     const user_name = pusher.name;
-    const lastCommit = commits[0];
+    const lastCommit = head_commit;
     msg = `项目 ${repository.name} 收到了一次push，提交者：${user_name}，最新提交信息：${lastCommit.message}`;
     const mdMsg = `项目 [${repository.name}](${repository.url}) 收到一次push提交
                     提交者:  \<font color= \"commit\"\>${user_name}\</font\>
@@ -59,11 +62,12 @@ async function handlePush(body, robotid) {
  * @param ctx koa context
  * @param robotid 机器人id
  */
-async function handlePR(body, robotid) {
+async function handlePR(context, body, robotid) {
     const robot = new ChatRobot(
+        context,
         robotid
     );
-    const {action, sender, pull_request, repository} = body;
+    const { action, sender, pull_request, repository } = body;
     const mdMsg = `${sender.login}在 [${repository.full_name}](${repository.html_url}) ${actionWords[action]}了PR
                     标题：${pull_request.title}
                     源分支：${pull_request.head.ref}
@@ -78,8 +82,9 @@ async function handlePR(body, robotid) {
  * @param ctx koa context
  * @param robotid 机器人id
  */
-async function handleIssue(body, robotid) {
+async function handleIssue(context, body, robotid) {
     const robot = new ChatRobot(
+        context,
         robotid
     );
     const { action, issue, repository } = body;
@@ -103,28 +108,48 @@ function handleDefault(body, event) {
     return `Sorry，暂时还没有处理${event}事件`;
 }
 
-exports.main_handler = async (event, context, callback) => {
-    console.log('event: ', event);
-    if (!(event.headers && event.headers[HEADER_KEY])) {
-        return 'Not a github webhook deliver'
+module.exports = async function (context, req) {
+    var body = "";
+    var stats = 200;
+
+    context.log('payload: ', req.body);
+    context.log('header: ', req.query);
+
+    try {
+        if (!(req.headers && req.headers[HEADER_KEY])) {
+            body = 'Not a github webhook deliver'
+        }
+        else {
+            const gitEvent = req.headers[HEADER_KEY];
+            const robotid = req.query.id;
+            const payload = req.body;
+
+            switch (gitEvent) {
+                case "push":
+                    body = await handlePush(context, payload, robotid);
+                    break;
+                case "pull_request":
+                    body = await handlePR(context, payload, robotid);
+                    break;
+                case "ping":
+                    body = await handlePing(context, payload, robotid);
+                    break;
+                case "issues":
+                    body = await handleIssue(context, payload, robotid);
+                    break;
+                default:
+                    body = handleDefault(payload, gitEvent);
+                    break;
+            }
+        }
+    } catch (err) {
+        stats = 500;
+        context.log(err);
+        body = err;
     }
-    const gitEvent = event.headers[HEADER_KEY]
-    const robotid = event.queryString.id
-    const query = querystring.parse(event.body);
-    // console.log('query: ', query);
-    const payload = JSON.parse(query.payload);
-    console.log('payload: ', payload);    
-    console.log('robotid: ', robotid);
-    switch (gitEvent) {
-        case "push":
-            return await handlePush(payload, robotid);
-        case "pull_request":
-            return await handlePR(payload, robotid);
-        case "ping":
-            return await handlePing(payload, robotid);
-        case "issues":
-            return await handleIssue(payload, robotid);
-        default:
-            return handleDefault(payload, gitEvent);
+    context.res = {
+        status: stats,
+        body: body,
+        contentType: "text/plain"
     }
 };
