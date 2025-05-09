@@ -2,7 +2,6 @@
     "name": "gitcode-wework-robot",
     "version": "1.0.0",
     "description": "连接git.code.oa.com和企业微信的机器人，监听git.code的webhook来推送push、PR等信息到群内。",
-    "main": "index.js",
     "scripts": {
         "start": "nodemon --watch 'src/**/*' -e ts,tsx --exec ts-node src/server.ts",
         "build": "webpack --config webpack.config.js --progress",
